@@ -36,24 +36,17 @@ public:
 	HuffmanEncoder(HuffmanTokenizer<Symbol>* tokenizer): tokenizer(tokenizer) {}
 
 	void encode(string outputFile, string outputKey) {
-		unordered_map<Symbol, int> hash;
+		unordered_map<Symbol, int> frequencyHash;
 		priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> heap;
 		unordered_map<Symbol, string> symbolToBitMapping;
 		Symbol token;
 
 		//build a map with a count of data
-		while(tokenizer->hasNextToken()) {
-			token = tokenizer->getNextToken();
-			if(hash.count(token) == 0) {
-				hash[token] = 1;
-			} else {
-				hash[token] += 1;
-			}
-		}
+		frequencyHash = getTokenFrequencyStats();
 
 		//build a priority queue with the occurance info
-		auto hashIter = hash.begin();
-		while(hashIter != hash.end()) {
+		auto hashIter = frequencyHash.begin();
+		while(hashIter != frequencyHash.end()) {
 			HuffmanEncoderNode<Symbol>* node = new HuffmanEncoderNode<Symbol>(hashIter->first, hashIter->second);
 			heap.push(node);
 			hashIter++;
@@ -132,6 +125,28 @@ private:
 		key += createKeyCoding(node->right, path + "1", "");
 
 		return key;
+	}
+
+	/**
+	* generates a unordered_map with symbols and their number of occurences
+	* sideeffects: tokenizer is reset
+	*/
+	unordered_map<Symbol, int> getTokenFrequencyStats() {
+		tokenizer->rewind(); //incase they used the tokenizer before calling this function
+		unordered_map<Symbol, int> hash;
+		Symbol token;
+
+		while(tokenizer->hasNextToken()) {
+			token = tokenizer->getNextToken();
+			if(hash.count(token) == 0) {
+				hash[token] = 1;
+			} else {
+				hash[token] += 1;
+			}
+		}
+
+		tokenizer->rewind(); //leave the tokenizer in a reset state
+		return hash;
 	}
 
 

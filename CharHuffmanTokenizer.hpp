@@ -25,7 +25,18 @@ public:
 	}
 
 	bool hasNextToken() {
-		return !inputFile.eof();
+		char nextToken;
+		inputFile >> nextToken;
+
+		bool hasNext;
+		if(inputFile.eof()) {
+			hasNext = false;
+		} else {
+			hasNext = true;
+			inputFile.putback(nextToken);
+		}
+
+		return hasNext;
 	}
 
 	void rewind() {
