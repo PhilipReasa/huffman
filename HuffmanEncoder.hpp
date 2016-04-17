@@ -45,12 +45,7 @@ public:
 		frequencyHash = getTokenFrequencyStats();
 
 		//build a priority queue with the occurance info
-		auto hashIter = frequencyHash.begin();
-		while(hashIter != frequencyHash.end()) {
-			HuffmanEncoderNode<Symbol>* node = new HuffmanEncoderNode<Symbol>(hashIter->first, hashIter->second);
-			heap.push(node);
-			hashIter++;
-		}
+		heap = convertFrequencyHashToPriorityQueue(frequencyHash);
 
 		//build a encoding tree
 		int combinedValue;
@@ -147,6 +142,23 @@ private:
 
 		tokenizer->rewind(); //leave the tokenizer in a reset state
 		return hash;
+	}
+
+	/**
+	*
+	*
+	*/
+	priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> convertFrequencyHashToPriorityQueue(unordered_map<Symbol, int> frequencyHash) {
+		priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> heap;
+
+		auto hashIter = frequencyHash.begin();
+		while(hashIter != frequencyHash.end()) {
+			HuffmanEncoderNode<Symbol>* node = new HuffmanEncoderNode<Symbol>(hashIter->first, hashIter->second);
+			heap.push(node);
+			hashIter++;
+		}
+
+		return heap;
 	}
 
 

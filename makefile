@@ -15,7 +15,6 @@ test: test.o
 compile: main.o
 	$(CC) $(CFLAGS) main.o -o run
 
-
 clean:
 	rm *.o 
 	rm test
