@@ -2,4 +2,5 @@
 test
 run
 key.txt
-outFile.txt
+encoded.txt
+decoded.txt

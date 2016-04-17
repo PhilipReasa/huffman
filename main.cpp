@@ -8,9 +8,9 @@ int main() {
 
 	HuffmanEncoder<char>* encoder = new HuffmanEncoder<char>(tokenizer);
 
-	encoder->encode("outFile.txt","key.txt");
+	encoder->encode("encoded.txt","key.txt");
 
-	encoder->decode("decodedFile.txt","key.txt");
+	encoder->decode("decoded.txt", "encoded.txt", "key.txt");
 
 	delete tokenizer;
 	delete encoder;

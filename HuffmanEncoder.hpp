@@ -37,61 +37,22 @@ public:
 
 	void encode(string outputFile, string outputKey) {
 		unordered_map<Symbol, int> frequencyHash;
-		priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> heap;
+		HuffmanEncoderNode<Symbol>* huffmanTree;
 		unordered_map<Symbol, string> symbolToBitMapping;
+		string key;
 		Symbol token;
 
-		//build a map with a count of data
 		frequencyHash = getTokenFrequencyStats();
 
-		//build a priority queue with the occurance info
-		heap = convertFrequencyHashToPriorityQueue(frequencyHash);
+		huffmanTree = generateHuffmanTree(frequencyHash);
 
-		//build a encoding tree
-		int combinedValue;
-		HuffmanEncoderNode<Symbol>* leftNode, *rightNode;
-		while(heap.size() > 1) {
-			leftNode = heap.top();
-			combinedValue = leftNode->value;
-			heap.pop();
-
-			rightNode = heap.top();
-			combinedValue += rightNode->value;
-			heap.pop();
-
-			HuffmanEncoderNode<Symbol>* node = new HuffmanEncoderNode<Symbol>(combinedValue);
-			node->left = leftNode;
-			node->right = rightNode;
-			heap.push(node);
-		}
+		flattenHuffmanTree(huffmanTree, &symbolToBitMapping);
 
 		//save the encoding key to file
-		string key = "";
-		key = createKeyCoding(heap.top(), "", key);
+		key = serializeFlattenedHuffmanTree(&symbolToBitMapping);
 		ofstream keyFile(outputKey);
 		keyFile << key;
 		keyFile.close();
-
-
-		//create symbol --> bit mapping
-		int lastColonLocation = 0;
-		int nextColonLocation = key.find(":",0);
-		int lastNewLineLocation = 0;
-		int nextNewlineLocation = key.find("\n",0) + 1;
-		Symbol symbolKey;
-		string symbolValue;
-		while(nextColonLocation != string::npos) {
-			symbolValue = key.substr(lastNewLineLocation, nextColonLocation - lastNewLineLocation);
-			symbolKey = tokenizer->deserialize(key.substr(nextColonLocation + 1, (nextNewlineLocation - nextColonLocation) - 2));
-
-			symbolToBitMapping[symbolKey] = symbolValue;
-
-			lastColonLocation = nextColonLocation;
-			lastNewLineLocation = nextNewlineLocation;
-			nextColonLocation = key.find(":", lastColonLocation + 1);
-			nextNewlineLocation = key.find("\n", lastNewLineLocation) + 1;
-		}
-
 
 		//create the encoded file
 		tokenizer->rewind();
@@ -103,25 +64,47 @@ public:
 		ofstream encodedFile(outputFile);
 		encodedFile << encodedSymbols;
 		keyFile.close();
-
 	}
 
-	void decode(string decodeFile, string encodingKey) {
+	void decode(string decodeFileName, string encodedFileName, string encodingKeyName) {
+		unordered_map<string, Symbol> bitToSymbolMapping;
+		vector<string> serializedFlattenedHuffmanTree;
+		string keyLine;
 
+		//read in the key
+		ifstream keyFile(encodingKeyName);
+		while(keyFile >> keyLine) {
+			serializedFlattenedHuffmanTree.push_back(keyLine);
+		}
+		keyFile.close();
+
+		//deserialize the key
+		bitToSymbolMapping = reverseDeserializeFlattenedHuffmanTree(serializedFlattenedHuffmanTree);
+
+		//decode the file
+		ifstream encodedFile(encodedFileName);
+		char bit;
+		encodedFile >> bit;
+		string key = "";
+		string decodedString = "";
+		while(bit == '1' || bit == '0') {
+			key += bit;
+			if(bitToSymbolMapping.count(key)) {
+				decodedString += bitToSymbolMapping.at(key);
+				key = "";
+			}
+
+			bit = '\0';
+			encodedFile >> bit;
+		}
+
+		//save the decoded file
+		ofstream decodedFile(decodeFileName);
+		decodedFile << decodedString;
+		decodedFile.close();
 	}
 
 private:
-	string createKeyCoding(HuffmanEncoderNode<Symbol>* node, string path, string key) {
-		if(node->isLeaf) {
-			return path + ":" + tokenizer->serialize(node->symbol) + "\n";
-		}
-
-		key += createKeyCoding(node->left, path + "0", "");
-		key += createKeyCoding(node->right, path + "1", "");
-
-		return key;
-	}
-
 	/**
 	* generates a unordered_map with symbols and their number of occurences
 	* sideeffects: tokenizer is reset
@@ -144,13 +127,10 @@ private:
 		return hash;
 	}
 
-	/**
-	*
-	*
-	*/
-	priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> convertFrequencyHashToPriorityQueue(unordered_map<Symbol, int> frequencyHash) {
+	HuffmanEncoderNode<Symbol>* generateHuffmanTree(unordered_map<Symbol, int> frequencyHash) {
 		priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> heap;
 
+		//build nodes and put into priority queue
 		auto hashIter = frequencyHash.begin();
 		while(hashIter != frequencyHash.end()) {
 			HuffmanEncoderNode<Symbol>* node = new HuffmanEncoderNode<Symbol>(hashIter->first, hashIter->second);
@@ -158,7 +138,67 @@ private:
 			hashIter++;
 		}
 
-		return heap;
+		//build a encoding tree
+		int combinedValue;
+		HuffmanEncoderNode<Symbol>* leftNode, *rightNode;
+		while(heap.size() > 1) {
+			leftNode = heap.top();
+			combinedValue = leftNode->value;
+			heap.pop();
+
+			rightNode = heap.top();
+			combinedValue += rightNode->value;
+			heap.pop();
+
+			HuffmanEncoderNode<Symbol>* node = new HuffmanEncoderNode<Symbol>(combinedValue);
+			node->left = leftNode;
+			node->right = rightNode;
+			heap.push(node);
+		}
+
+		return heap.top();
+	}
+
+	void flattenHuffmanTree(HuffmanEncoderNode<Symbol>* node, unordered_map<Symbol, string>* symbolToBitMapping) {
+		flattenHuffmanTree(node, "", symbolToBitMapping);
+	}
+
+	void flattenHuffmanTree(HuffmanEncoderNode<Symbol>* node, string path, unordered_map<Symbol, string>* symbolToBitMapping) {
+		if(node->isLeaf) {
+			(*symbolToBitMapping)[node->symbol] = path;
+			return;
+		}
+
+		flattenHuffmanTree(node->left, path + "0", symbolToBitMapping);
+		flattenHuffmanTree(node->right, path + "1", symbolToBitMapping);
+	}
+
+	string serializeFlattenedHuffmanTree(unordered_map<Symbol, string>* symbolToBitMapping) {
+		string serialization = "";
+		for(auto mappingIter = symbolToBitMapping->begin(); mappingIter != symbolToBitMapping->end(); mappingIter ++) {
+			serialization += mappingIter->second + ":" + mappingIter->first + "\n";
+		}
+
+		return serialization;
+	}
+
+	unordered_map<string, Symbol> reverseDeserializeFlattenedHuffmanTree(vector<string> serialization) {
+		unordered_map<string, Symbol> flattenedHuffmanTree;
+
+		int colonLocation;
+		string currentKeyValue;
+		Symbol symbolKey;
+		string symbolValue;
+		for(auto it = serialization.begin(); it != serialization.end(); it++) {
+			currentKeyValue = *it;
+			colonLocation = currentKeyValue.find(":");
+			symbolValue = currentKeyValue.substr(0, colonLocation);
+			symbolKey = tokenizer->deserialize(currentKeyValue.substr(colonLocation + 1, currentKeyValue.size()));
+
+			flattenedHuffmanTree[symbolValue] = symbolKey;
+		}
+
+		return flattenedHuffmanTree;
 	}
 
 
