@@ -1,5 +1,5 @@
 #Huffman coding
-Someone mentioned huffman encoding in passing one day, and I though to myself "hmmm, that would be a compression algo to write myself" - and so the project was born.
+Someone mentioned huffman encoding in passing one day, and I though to myself "hmmm, that would be a fun compression algo to write myself" - and so this project was born.
 
 Things to note: 
 * You  don't want to use this; I'm confident there are better tested and more robust libraries already in existence. Also, this actually doesn't compress data (see next point)
