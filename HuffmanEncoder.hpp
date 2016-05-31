@@ -14,9 +14,16 @@ using namespace std;
 template <typename Symbol>
 class HuffmanEncoderNode {
 public:
+	//NOTE: the way we are doing leaf/non-leaf nodes is not robust, and can easily be improved
+
+	//constructor to be used for leaf nodes
 	HuffmanEncoderNode(Symbol symbol, int value): symbol(symbol), value(value), isLeaf(true) {}
+	
+	//constructor to be used for value only nodes
 	HuffmanEncoderNode(int value): value(value), isLeaf(false)  {}
-	HuffmanEncoderNode() {} //needed for compare function
+
+	//needed for compare function
+	HuffmanEncoderNode() {} 
 
 	HuffmanEncoderNode* right;
 	HuffmanEncoderNode* left;
@@ -35,6 +42,11 @@ class HuffmanEncoder {
 public:
 	HuffmanEncoder(HuffmanTokenizer<Symbol>* tokenizer): tokenizer(tokenizer) {}
 
+	/**
+	* Provided a file to save compressed data to,
+	* and a file to save the compression key, this function
+	* will Huffman encode your file.
+	*/
 	void encode(string outputFile, string outputKey) {
 		unordered_map<Symbol, int> frequencyHash;
 		HuffmanEncoderNode<Symbol>* huffmanTree;
@@ -58,14 +70,20 @@ public:
 		tokenizer->rewind();
 		string encodedSymbols;
 		while(tokenizer->hasNextToken()) {
+			//encode the tokens one by one
 			token = tokenizer->getNextToken();
-			encodedSymbols += symbolToBitMapping.at(token); //using at so error will throw if symbol not mapped
+			encodedSymbols += symbolToBitMapping.at(token); //using "at" so error will throw if symbol not mapped
 		}
 		ofstream encodedFile(outputFile);
 		encodedFile << encodedSymbols;
-		keyFile.close();
+		encodedFile.close();
 	}
 
+	/**
+	* Given a spot to save the decoded file, the location of the encoded file, 
+	* and the encoding key file name, this function will decode the encoded file
+	* and save the results.
+	*/
 	void decode(string decodeFileName, string encodedFileName, string encodingKeyName) {
 		unordered_map<string, Symbol> bitToSymbolMapping;
 		vector<string> serializedFlattenedHuffmanTree;
@@ -79,22 +97,25 @@ public:
 		keyFile.close();
 
 		//deserialize the key
-		bitToSymbolMapping = reverseDeserializeFlattenedHuffmanTree(serializedFlattenedHuffmanTree);
+		bitToSymbolMapping = deserializeFlattenedHuffmanTree(serializedFlattenedHuffmanTree);
 
 		//decode the file
 		ifstream encodedFile(encodedFileName);
 		char bit;
-		encodedFile >> bit;
 		string key = "";
 		string decodedString = "";
+
+		encodedFile >> bit;
 		while(bit == '1' || bit == '0') {
+			//walk through the file one bit at a time.
 			key += bit;
 			if(bitToSymbolMapping.count(key)) {
+				//we have found an encoding key
 				decodedString += bitToSymbolMapping.at(key);
 				key = "";
 			}
 
-			bit = '\0';
+			bit = '\0'; //so that our loop fails if we are out of chars in file
 			encodedFile >> bit;
 		}
 
@@ -107,7 +128,7 @@ public:
 private:
 	/**
 	* generates a unordered_map with symbols and their number of occurences
-	* sideeffects: tokenizer is reset
+	* side-effects: tokenizer is reset
 	*/
 	unordered_map<Symbol, int> getTokenFrequencyStats() {
 		tokenizer->rewind(); //incase they used the tokenizer before calling this function
@@ -127,6 +148,11 @@ private:
 		return hash;
 	}
 
+	/**
+	* Where a good portion of the majic happens!
+	* Takes the symbol->frequency map and build out an optimal
+	* huffman encoding tree. So cool!
+	*/
 	HuffmanEncoderNode<Symbol>* generateHuffmanTree(unordered_map<Symbol, int> frequencyHash) {
 		priority_queue<HuffmanEncoderNode<Symbol>*, std::vector<HuffmanEncoderNode<Symbol>*>, HuffmanEncoderNode<Symbol>> heap;
 
@@ -159,10 +185,17 @@ private:
 		return heap.top();
 	}
 
+	/**
+	* Root of a recursive function.
+	*/
 	void flattenHuffmanTree(HuffmanEncoderNode<Symbol>* node, unordered_map<Symbol, string>* symbolToBitMapping) {
 		flattenHuffmanTree(node, "", symbolToBitMapping);
 	}
 
+	/**
+	* Takes a tree, and turns it into a path->value map. The path is
+	* discovered in a bepth first manner (although it doesn't really matter)
+	*/
 	void flattenHuffmanTree(HuffmanEncoderNode<Symbol>* node, string path, unordered_map<Symbol, string>* symbolToBitMapping) {
 		if(node->isLeaf) {
 			(*symbolToBitMapping)[node->symbol] = path;
@@ -173,6 +206,9 @@ private:
 		flattenHuffmanTree(node->right, path + "1", symbolToBitMapping);
 	}
 
+	/**
+	* Turns a flattened huffman tree into something that can be saved to disk
+	*/
 	string serializeFlattenedHuffmanTree(unordered_map<Symbol, string>* symbolToBitMapping) {
 		string serialization = "";
 		for(auto mappingIter = symbolToBitMapping->begin(); mappingIter != symbolToBitMapping->end(); mappingIter ++) {
@@ -182,7 +218,11 @@ private:
 		return serialization;
 	}
 
-	unordered_map<string, Symbol> reverseDeserializeFlattenedHuffmanTree(vector<string> serialization) {
+	/**
+	* Turns a serialized flattened huffman tree in a more usable symbol based
+	* flattened huffman tree
+	*/
+	unordered_map<string, Symbol> deserializeFlattenedHuffmanTree(vector<string> serialization) {
 		unordered_map<string, Symbol> flattenedHuffmanTree;
 
 		int colonLocation;

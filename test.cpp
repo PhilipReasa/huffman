@@ -8,7 +8,7 @@ using namespace std;
 
 SCENARIO("CharHuffmanTokenizer Tests", "[tokenizer]") {
 	GIVEN("A CharHuffmanTokenizer") {
-		CharHuffmanTokenizer* tokenizer = new CharHuffmanTokenizer("testAlphabet");
+		CharHuffmanTokenizer* tokenizer = new CharHuffmanTokenizer("samples/testAlphabet");
 
 		WHEN("you call getNextToken") {
 			char token = tokenizer->getNextToken();
